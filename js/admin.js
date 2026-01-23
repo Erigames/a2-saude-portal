@@ -229,16 +229,31 @@ window.createNewManual = async function() {
         
         console.log("Criando arquivo com nome:", name, "ID:", finalId, "Arquivo:", fileName);
         
-        // Tenta fazer upload do arquivo para Firebase Storage
+        // Tenta fazer upload do arquivo para Firebase Storage (com timeout)
         let downloadURL = null;
         try {
-            showInfo("Fazendo upload do arquivo...");
-            const storageRef = ref(storage, `manuais/${finalId}/${Date.now()}_${fileName}`);
-            await uploadBytes(storageRef, newManualFile);
-            downloadURL = await getDownloadURL(storageRef);
+            showInfo("Tentando fazer upload do arquivo... (máx. 5 segundos)");
+            
+            // Adiciona timeout para não travar indefinidamente
+            const uploadPromise = (async () => {
+                try {
+                    const storageRef = ref(storage, `manuais/${finalId}/${Date.now()}_${fileName}`);
+                    await uploadBytes(storageRef, newManualFile);
+                    return await getDownloadURL(storageRef);
+                } catch(err) {
+                    throw new Error(`Erro no upload: ${err.message || err.code || 'Erro desconhecido'}`);
+                }
+            })();
+            
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Timeout: Storage não respondeu em 5 segundos")), 5000)
+            );
+            
+            downloadURL = await Promise.race([uploadPromise, timeoutPromise]);
             console.log("Arquivo enviado para Storage, URL:", downloadURL);
         } catch(storageError) {
-            console.warn("Upload para Storage falhou, salvando apenas nome no Firestore:", storageError);
+            console.warn("Upload para Storage falhou ou timeout, salvando apenas nome no Firestore:", storageError.message || storageError);
+            showInfo("Storage não disponível, salvando apenas referência no Firestore...");
             // Continua mesmo se o Storage falhar - salva apenas o nome
         }
         
@@ -306,13 +321,21 @@ window.handleFileSelect = async function(input) {
         
         let downloadURL = null;
         try {
-            // Tenta fazer upload para Storage
-            const storageRef = ref(storage, `manuais/${currentManualId}/${Date.now()}_${file.name}`);
-            await uploadBytes(storageRef, file);
-            downloadURL = await getDownloadURL(storageRef);
+            // Tenta fazer upload para Storage (com timeout)
+            const uploadPromise = (async () => {
+                const storageRef = ref(storage, `manuais/${currentManualId}/${Date.now()}_${file.name}`);
+                await uploadBytes(storageRef, file);
+                return await getDownloadURL(storageRef);
+            })();
+            
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Timeout: Storage não respondeu")), 5000)
+            );
+            
+            downloadURL = await Promise.race([uploadPromise, timeoutPromise]);
             console.log("Arquivo enviado para Storage:", file.name, "URL:", downloadURL);
         } catch(e) {
-            console.warn("Upload para Storage falhou, usando apenas nome:", file.name, e);
+            console.warn("Upload para Storage falhou ou timeout, usando apenas nome:", file.name, e.message || e);
             storageFailedCount++;
             // Continua mesmo se falhar - salva apenas o nome
         }
