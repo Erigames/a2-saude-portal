@@ -1,7 +1,8 @@
 // js/admin.js - Painel do Gerente
-import { db, auth } from './config.js';
+import { db, auth, storage } from './config.js';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 let currentFiles = [];
 let currentManualId = null;
@@ -102,9 +103,13 @@ window.loadManualContent = async function() {
         const snap = await getDoc(doc(db, "manuais", currentManualId));
         if(snap.exists()) {
             const d = snap.data();
-            // Filtra apenas arquivos válidos (com propriedade 'name')
+            // Filtra apenas arquivos válidos (com propriedade 'name') e preserva URL se existir
             if(Array.isArray(d.files)) {
-                currentFiles = d.files.filter(f => f && f.name && typeof f.name === 'string' && f.name.trim() !== '');
+                currentFiles = d.files.filter(f => f && f.name && typeof f.name === 'string' && f.name.trim() !== '')
+                    .map(f => ({
+                        name: f.name,
+                        url: f.url || null // Preserva URL se existir
+                    }));
             } else {
                 currentFiles = [];
             }
@@ -224,10 +229,18 @@ window.createNewManual = async function() {
         
         console.log("Criando arquivo com nome:", name, "ID:", finalId, "Arquivo:", fileName);
         
-        // Cria o arquivo com o arquivo selecionado
+        // Faz upload do arquivo para Firebase Storage
+        showInfo("Fazendo upload do arquivo...");
+        const storageRef = ref(storage, `manuais/${finalId}/${Date.now()}_${fileName}`);
+        await uploadBytes(storageRef, newManualFile);
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        console.log("Arquivo enviado para Storage, URL:", downloadURL);
+        
+        // Cria o arquivo com a URL do Storage
         await setDoc(doc(db, "manuais", finalId), {
             name: name,
-            files: [{name: fileName}], // Adiciona o arquivo selecionado
+            files: [{name: fileName, url: downloadURL}], // Salva nome e URL
             createdAt: new Date()
         });
         
@@ -253,26 +266,52 @@ window.createNewManual = async function() {
     }
 }
 
-// Remove arquivo da lista
-window.handleFileSelect = function(input) {
+// Adiciona arquivos à lista e faz upload para Storage
+window.handleFileSelect = async function(input) {
     if(!input || !input.files || input.files.length === 0) {
         showWarning("Nenhum arquivo selecionado!");
         return;
     }
     
-    // Adiciona todos os arquivos selecionados à lista
-    Array.from(input.files).forEach(f => {
+    if(!currentManualId) {
+        showWarning("Selecione um arquivo primeiro!");
+        return;
+    }
+    
+    showInfo(`Fazendo upload de ${input.files.length} arquivo(s)...`);
+    
+    // Faz upload de cada arquivo para Storage
+    for(const file of Array.from(input.files)) {
         // Verifica se o arquivo já não está na lista
-        const exists = currentFiles.some(existing => existing.name === f.name);
-        if(!exists) {
-            currentFiles.push({name: f.name});
+        const exists = currentFiles.some(existing => existing.name === file.name);
+        if(exists) {
+            console.log("Arquivo já existe na lista:", file.name);
+            continue;
         }
-    });
+        
+        try {
+            // Faz upload para Storage
+            const storageRef = ref(storage, `manuais/${currentManualId}/${Date.now()}_${file.name}`);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            
+            // Adiciona à lista com URL
+            currentFiles.push({name: file.name, url: downloadURL});
+            console.log("Arquivo enviado:", file.name, "URL:", downloadURL);
+        } catch(e) {
+            console.error("Erro ao fazer upload de", file.name, ":", e);
+            showError(`Erro ao fazer upload de ${file.name}: ${e.message}`);
+        }
+    }
     
     renderFiles();
     
     // Limpa o input para permitir selecionar o mesmo arquivo novamente
     input.value = '';
+    
+    if(input.files.length > 0) {
+        showSuccess(`${input.files.length} arquivo(s) adicionado(s) com sucesso!`);
+    }
 }
 
 window.removeFile = function(i) {
@@ -320,7 +359,7 @@ function renderFiles() {
     });
 }
 
-// Salva arquivo
+// Salva arquivo (os uploads já foram feitos em handleFileSelect)
 window.saveManual = async function() {
     if(!currentManualId) {
         showWarning("Selecione um arquivo primeiro!");
@@ -339,9 +378,10 @@ window.saveManual = async function() {
         const manualDoc = await getDoc(doc(db, "manuais", currentManualId));
         const existingData = manualDoc.exists() ? manualDoc.data() : {};
         
+        // Salva os arquivos (já com URLs do Storage)
         await setDoc(doc(db, "manuais", currentManualId), {
             name: existingData.name || currentManualId,
-            files: currentFiles,
+            files: currentFiles, // Já contém {name, url}
             updatedAt: new Date()
         }, { merge: true });
         

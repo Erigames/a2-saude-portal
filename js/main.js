@@ -102,14 +102,29 @@ function renderPortalQualificadas() {
 function renderMedia(file) {
     const div = document.getElementById('media-container');
     div.innerHTML = "";
-    const isVideo = file.name.match(/\.(mp4|webm)$/i);
+    
+    // Usa URL do Storage se disponível, senão usa o nome (compatibilidade com arquivos antigos)
+    const fileUrl = file.url || file.name;
+    
+    if(!fileUrl) {
+        div.innerHTML = "<div style='color:#ccc; padding:20px;'>Arquivo sem URL disponível</div>";
+        return;
+    }
+    
+    const isVideo = file.name && file.name.match(/\.(mp4|webm)$/i);
     if(isVideo) {
         const v = document.createElement('video');
-        v.src = file.name; v.controls = true; v.autoplay = true;
+        v.src = fileUrl;
+        v.controls = true;
+        v.autoplay = true;
         div.appendChild(v);
     } else {
+        // Para PDFs e outros documentos, usa iframe
         const i = document.createElement('iframe');
-        i.src = file.name;
+        i.src = fileUrl;
+        i.style.width = '100%';
+        i.style.height = '100%';
+        i.style.border = 'none';
         div.appendChild(i);
     }
 }
