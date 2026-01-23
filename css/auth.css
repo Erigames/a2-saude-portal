@@ -1,7 +1,36 @@
 /* Login & Auth Styles */
-.auth-form { width: 100%; display: flex; flex-direction: column; gap: 20px; margin-top: 10px; }
-.input-wrapper { position: relative; width: 100%; border-radius: 12px; background: white; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: transform 0.2s; }
-.input-wrapper:hover { transform: translateY(-2px); }
+.auth-form { 
+    width: 100%; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 20px; 
+    margin-top: 10px; 
+}
+.input-wrapper { 
+    position: relative; 
+    width: 100%; 
+    border-radius: 12px; 
+    background: white; 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05); 
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+}
+.input-wrapper:hover { 
+    transform: translateY(-2px); 
+}
+/* Animação de mudança de posição quando alterna entre login e cadastro */
+.input-wrapper {
+    animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes slideIn {
+    0% { 
+        opacity: 0; 
+        transform: translateY(15px) scale(0.95); 
+    }
+    100% { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+    }
+}
 .input-wrapper input { width: 100%; padding: 15px; border-radius: 12px; border: 2px solid transparent; background: transparent; outline: none; position: relative; z-index: 2; font-size: 1rem; }
 .input-wrapper:focus-within { background: white; animation: borderCycle 3s infinite linear; }
 @keyframes borderCycle {

@@ -33,6 +33,31 @@ window.toggleAuthMode = function() {
     isRegisterMode = document.getElementById('auth-toggle').checked;
     document.getElementById('btn-text').innerText = isRegisterMode ? "Cadastrar" : "Acessar";
     document.getElementById('auth-msg').innerText = "";
+    
+    // Adiciona animação de mudança de posição das caixas
+    const authForm = document.querySelector('.auth-form');
+    const emailWrapper = document.getElementById('email-wrapper');
+    const passWrapper = document.getElementById('pass-wrapper');
+    const emailInput = document.getElementById('auth-email');
+    const passInput = document.getElementById('auth-pass');
+    
+    if(isRegisterMode) {
+        // Modo cadastro: inverte a ordem (senha primeiro, depois email)
+        authForm.classList.add('register-mode');
+        // Usa CSS order para inverter a ordem visualmente
+        emailWrapper.style.order = '2';
+        passWrapper.style.order = '1';
+        emailInput.placeholder = "E-mail corporativo";
+        passInput.placeholder = "Crie uma senha (mín. 6 caracteres)";
+    } else {
+        // Modo login: ordem normal (email primeiro, depois senha)
+        authForm.classList.remove('register-mode');
+        // Ordem normal
+        emailWrapper.style.order = '1';
+        passWrapper.style.order = '2';
+        emailInput.placeholder = "E-mail corporativo";
+        passInput.placeholder = "Senha de acesso";
+    }
 }
 
 window.handleAuthSubmit = function() {

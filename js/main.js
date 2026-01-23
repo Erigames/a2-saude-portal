@@ -1,7 +1,7 @@
 import { initAuthListener } from './auth.js';
 import { goToChat, resetToHome, views } from './navigation.js';
-// ADICIONADO: importamos o sendMessage aqui
-import { setAiContext, initChatSequence, sendMessage } from './chat.js'; 
+// Importa funções do chat (IA genérica sem resumos pré-montados)
+import { initChatSequence, sendMessage } from './chat.js'; 
 import { db } from './config.js';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import './admin.js'; 
@@ -29,13 +29,19 @@ window.selectManual = async function(option) {
     manualPanel.classList.add('show');
     document.getElementById('manual-title').innerText = option.label;
 
-    let data = { files: [], aiText: '' };
+    // Verifica se é o Portal de Entrevistas Qualificadas
+    if(option.id === 'portal-entrevistas-qualificadas') {
+        renderPortalQualificadas();
+        document.getElementById('input-area').classList.remove('hidden');
+        return;
+    }
+
+    // Para outros manuais, carrega normalmente do banco
+    let data = { files: [] };
     try {
         const snap = await getDoc(doc(db, "manuais", option.id));
         if(snap.exists()) data = snap.data();
     } catch(e) { console.error(e); }
-
-    setAiContext(data.aiText || "");
 
     const mediaContainer = document.getElementById('media-container');
     const playlist = document.getElementById('playlist-container');
@@ -67,6 +73,29 @@ window.selectManual = async function(option) {
     }
     
     document.getElementById('input-area').classList.remove('hidden');
+}
+
+// Renderiza o Portal de Entrevistas Qualificadas com prévia do link
+function renderPortalQualificadas() {
+    const mediaContainer = document.getElementById('media-container');
+    const playlist = document.getElementById('playlist-container');
+    const linkUrl = "https://script.google.com/macros/s/AKfycby54lrJzi9ulcLOCb-fEo5OroysQkKebX_PidsOWcsonMie05jYjhPJw9biEO5FNHUI/exec";
+    
+    playlist.innerHTML = "";
+    playlist.classList.add('hidden');
+    
+    mediaContainer.innerHTML = `
+        <div class="link-preview-container">
+            <div class="link-preview">
+                <iframe src="${linkUrl}" frameborder="0"></iframe>
+            </div>
+            <div class="link-button-container">
+                <a href="${linkUrl}" target="_blank" class="link-button">
+                    Abrir Portal de Entrevistas Qualificadas
+                </a>
+            </div>
+        </div>
+    `;
 }
 
 function renderMedia(file) {

@@ -1,12 +1,15 @@
 // js/chat.js - Versão Segura para Vercel
+// IA genérica - não usa mais resumos pré-montados
 let currentAiContext = "";
 
+// Função mantida para compatibilidade, mas não será mais usada com resumos
 export function setAiContext(text) {
     currentAiContext = text;
 }
 
+// Inicia a sequência do chat - IA genérica sem resumos pré-montados
 export function initChatSequence() {
-    addMessage("bot", "Olá! Sou a A2 Inteligence.");
+    addMessage("bot", "Olá! Sou a A2 Intelligence.");
     setTimeout(() => { 
         addMessage("bot", "Qual manual deseja acessar?"); 
         showManualOptions(); 
@@ -22,15 +25,15 @@ function addMessage(sender, text) {
     chatBody.scrollTop = chatBody.scrollHeight;
 }
 
+// Mostra as opções de manuais disponíveis (apenas 2)
 function showManualOptions() {
     const chatBody = document.getElementById('chat-messages');
     const div = document.createElement('div');
     div.classList.add('cards-container');
+    // Apenas dois manuais: Manual de Entrevistas e Portal de Entrevistas Qualificadas
     const options = [
-        {id: 'tec-entrevista', label: 'Téc. Enfermagem - Entrevistas'},
-        {id: 'adm-interacao', label: 'Admin - Interação Cliente'},
-        {id: 'tec-admin', label: 'Téc. Enfermagem - Admin'},
-        {id: 'adm-cadastro', label: 'Admin - Cadastro'}
+        {id: 'manual-entrevistas', label: 'Manual de Entrevistas'},
+        {id: 'portal-entrevistas-qualificadas', label: 'Portal de Entrevistas Qualificadas'}
     ];
     options.forEach(opt => {
         const btn = document.createElement('div');
@@ -59,13 +62,13 @@ export async function sendMessage() {
     document.getElementById('chat-messages').appendChild(loading);
 
     try {
-        // MUDANÇA: Agora chamamos a nossa função na Vercel
+        // IA genérica - pesquisa conforme necessidade do usuário sem script pré-montado
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 question: text,
-                context: currentAiContext
+                context: "" // Sem contexto pré-montado - IA genérica
             })
         });
 
