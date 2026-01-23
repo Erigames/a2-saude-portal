@@ -229,22 +229,34 @@ window.createNewManual = async function() {
         
         console.log("Criando arquivo com nome:", name, "ID:", finalId, "Arquivo:", fileName);
         
-        // Faz upload do arquivo para Firebase Storage
-        showInfo("Fazendo upload do arquivo...");
-        const storageRef = ref(storage, `manuais/${finalId}/${Date.now()}_${fileName}`);
-        await uploadBytes(storageRef, newManualFile);
-        const downloadURL = await getDownloadURL(storageRef);
+        // Tenta fazer upload do arquivo para Firebase Storage
+        let downloadURL = null;
+        try {
+            showInfo("Fazendo upload do arquivo...");
+            const storageRef = ref(storage, `manuais/${finalId}/${Date.now()}_${fileName}`);
+            await uploadBytes(storageRef, newManualFile);
+            downloadURL = await getDownloadURL(storageRef);
+            console.log("Arquivo enviado para Storage, URL:", downloadURL);
+        } catch(storageError) {
+            console.warn("Upload para Storage falhou, salvando apenas nome no Firestore:", storageError);
+            // Continua mesmo se o Storage falhar - salva apenas o nome
+        }
         
-        console.log("Arquivo enviado para Storage, URL:", downloadURL);
-        
-        // Cria o arquivo com a URL do Storage
+        // Salva no Firestore (com URL se disponível, senão apenas nome)
+        // Arquivo físico deve estar na raiz do projeto com o mesmo nome
         await setDoc(doc(db, "manuais", finalId), {
             name: name,
-            files: [{name: fileName, url: downloadURL}], // Salva nome e URL
+            files: downloadURL 
+                ? [{name: fileName, url: downloadURL}] // Com URL se Storage funcionou
+                : [{name: fileName}], // Apenas nome se Storage falhou (arquivo na raiz)
             createdAt: new Date()
         });
         
-        showSuccess(`Arquivo "${name}" criado com sucesso!`);
+        if(downloadURL) {
+            showSuccess(`Arquivo "${name}" criado com sucesso!`);
+        } else {
+            showSuccess(`Arquivo "${name}" criado! Certifique-se de que o arquivo "${fileName}" está na raiz do projeto.`);
+        }
         
         // Limpa o formulário
         hideNewManualForm();
@@ -278,9 +290,12 @@ window.handleFileSelect = async function(input) {
         return;
     }
     
-    showInfo(`Fazendo upload de ${input.files.length} arquivo(s)...`);
+    showInfo(`Processando ${input.files.length} arquivo(s)...`);
     
-    // Faz upload de cada arquivo para Storage
+    let successCount = 0;
+    let storageFailedCount = 0;
+    
+    // Processa cada arquivo (tenta Storage, mas salva no Firestore mesmo se falhar)
     for(const file of Array.from(input.files)) {
         // Verifica se o arquivo já não está na lista
         const exists = currentFiles.some(existing => existing.name === file.name);
@@ -289,19 +304,27 @@ window.handleFileSelect = async function(input) {
             continue;
         }
         
+        let downloadURL = null;
         try {
-            // Faz upload para Storage
+            // Tenta fazer upload para Storage
             const storageRef = ref(storage, `manuais/${currentManualId}/${Date.now()}_${file.name}`);
             await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(storageRef);
-            
-            // Adiciona à lista com URL
-            currentFiles.push({name: file.name, url: downloadURL});
-            console.log("Arquivo enviado:", file.name, "URL:", downloadURL);
+            downloadURL = await getDownloadURL(storageRef);
+            console.log("Arquivo enviado para Storage:", file.name, "URL:", downloadURL);
         } catch(e) {
-            console.error("Erro ao fazer upload de", file.name, ":", e);
-            showError(`Erro ao fazer upload de ${file.name}: ${e.message}`);
+            console.warn("Upload para Storage falhou, usando apenas nome:", file.name, e);
+            storageFailedCount++;
+            // Continua mesmo se falhar - salva apenas o nome
         }
+        
+        // Adiciona à lista (com URL se disponível, senão apenas nome)
+        // Arquivo físico deve estar na raiz do projeto com o mesmo nome
+        if(downloadURL) {
+            currentFiles.push({name: file.name, url: downloadURL});
+        } else {
+            currentFiles.push({name: file.name}); // Apenas nome - arquivo na raiz
+        }
+        successCount++;
     }
     
     renderFiles();
@@ -309,8 +332,13 @@ window.handleFileSelect = async function(input) {
     // Limpa o input para permitir selecionar o mesmo arquivo novamente
     input.value = '';
     
-    if(input.files.length > 0) {
-        showSuccess(`${input.files.length} arquivo(s) adicionado(s) com sucesso!`);
+    // Mostra resultado
+    if(successCount > 0) {
+        if(storageFailedCount > 0) {
+            showWarning(`${successCount} arquivo(s) adicionado(s). ${storageFailedCount} sem Storage - certifique-se de que os arquivos estão na raiz do projeto.`);
+        } else {
+            showSuccess(`${successCount} arquivo(s) adicionado(s) com sucesso!`);
+        }
     }
 }
 
