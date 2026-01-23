@@ -36,17 +36,27 @@ export function goToChat() {
 export function resetToHome() {
     views.manualPanel.classList.remove('show');
     views.chat.classList.add('hidden');
-    document.getElementById('media-container').innerHTML = ""; 
+    const mediaEl = document.getElementById('media-container');
+    if(mediaEl) mediaEl.innerHTML = "";
 
     views.container.classList.remove('state-split', 'state-chat-full');
     views.container.classList.add('state-login');
 
-    setTimeout(() => {
+    setTimeout(async () => {
         views.home.classList.remove('hidden');
+        // Só mostra o botão do painel do gerente se o usuário logado for ADMIN
         if(!views.adminBtn.classList.contains('force-hidden')) {
-             // Lógica simples: se estava logado como admin, mostra btn
-             const userDisplay = document.getElementById('user-display-email').innerText;
-             if(userDisplay) views.adminBtn.classList.remove('hidden'); 
+            try {
+                const { currentUser } = await import('./auth.js');
+                const isAdmin = currentUser && currentUser.role === 'admin';
+                if(isAdmin) {
+                    views.adminBtn.classList.remove('hidden');
+                } else {
+                    views.adminBtn.classList.add('hidden');
+                }
+            } catch(e) {
+                views.adminBtn.classList.add('hidden');
+            }
         }
     }, 600);
 }

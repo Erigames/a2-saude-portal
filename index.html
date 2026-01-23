@@ -44,9 +44,11 @@
                 <div class="input-wrapper" id="pass-wrapper">
                     <input type="password" id="auth-pass" placeholder="Senha de acesso">
                 </div>
-                <button class="action-btn full-width magic-btn" onclick="handleAuthSubmit()">
-                    <span id="btn-text">Acessar</span>
-                </button>
+                <div class="button-wrapper" id="button-wrapper">
+                    <button class="action-btn full-width magic-btn" onclick="handleAuthSubmit()">
+                        <span id="btn-text">Acessar</span>
+                    </button>
+                </div>
             </div>
             <p id="auth-msg" class="msg-error"></p>
         </div>
@@ -63,7 +65,7 @@
                     <div class="bouncing-arrow">↓</div>
                 </div>
             </div>
-            <button class="action-btn magic-btn" onclick="transitionToChat()">👤 Acessar Manuais</button>
+            <button class="action-btn magic-btn" onclick="transitionToChat()">👤 Acessar Arquivos</button>
         </div>
 
         <div id="view-chat" class="content-view hidden chat-layout">
@@ -83,7 +85,7 @@
     </main>
 
     <section id="manual-panel" class="manual-panel">
-        <h2 id="manual-title">MANUAL</h2>
+        <h2 id="manual-title">ARQUIVOS</h2>
         <div id="playlist-container" class="playlist-nav hidden"></div>
         <div id="media-container" class="media-display"><p style="padding: 20px; color: #666;">Selecione um item.</p></div>
     </section>
@@ -92,30 +94,30 @@
         <div class="modal-box glass-style">
             <h3>Painel do Gerente</h3>
             <div class="admin-tabs">
-                <button class="tab-btn active" onclick="switchAdminTab('manuals')">Manuais</button>
+                <button class="tab-btn active" onclick="switchAdminTab('manuals')">Arquivos</button>
                 <button class="tab-btn" onclick="switchAdminTab('users')">Usuários</button>
             </div>
-            <!-- Aba de Manuais - CRUD completo -->
+            <!-- Aba de Arquivos - CRUD completo -->
             <div id="tab-manuals" class="admin-section">
                 <div class="manual-crud-section">
-                    <h4>Gerenciar Manuais</h4>
+                    <h4>Gerenciar Arquivos</h4>
                     <div class="manual-list-controls">
                         <select id="admin-select" onchange="loadManualContent()">
-                            <option value="">Selecione um manual...</option>
+                            <option value="">Selecione um arquivo...</option>
                         </select>
-                        <button class="glass-btn" onclick="showNewManualForm()">+ Novo Manual</button>
+                        <button class="glass-btn" onclick="showNewManualForm()">+ Novo Arquivo</button>
                     </div>
                     <div id="new-manual-form" class="new-manual-form hidden">
-                        <label>Nome do Manual:</label>
-                        <input type="text" id="new-manual-name" placeholder="Ex: Manual de Procedimentos" class="glass-input">
-                        <label>Arquivo do Manual:</label>
+                        <label>Nome do Arquivo:</label>
+                        <input type="text" id="new-manual-name" placeholder="Ex: Arquivo de Procedimentos" class="glass-input">
+                        <label>Arquivo:</label>
                         <div class="file-upload-area">
                             <button class="glass-btn upload-btn" onclick="document.getElementById('new-manual-file-input').click()">📂 Selecionar Arquivo</button>
                             <input type="file" id="new-manual-file-input" style="display: none;" onchange="handleNewManualFileSelect(this)">
                             <p id="new-manual-file-name" class="tip-text" style="margin-top: 10px; color: #666;"></p>
                         </div>
                         <div class="form-actions">
-                            <button class="glass-btn" onclick="createNewManual()">Criar Manual</button>
+                            <button class="glass-btn" onclick="createNewManual()">Criar Arquivo</button>
                             <button class="glass-btn btn-cancel" onclick="hideNewManualForm()">Cancelar</button>
                         </div>
                     </div>
@@ -128,7 +130,7 @@
                         <ul id="admin-file-list" class="file-list"></ul>
                         <div class="modal-actions">
                             <button class="glass-btn" onclick="saveManual()">Salvar</button>
-                            <button class="glass-btn btn-danger" onclick="deleteManual()">Excluir Manual</button>
+                            <button class="glass-btn btn-danger" onclick="deleteManual()">Excluir Arquivo</button>
                         </div>
                     </div>
                 </div>
@@ -148,21 +150,28 @@
         </div>
     </div>
     
-    <!-- Modal para editar usuário -->
-    <div id="edit-user-modal" class="modal-overlay hidden" onclick="if(event.target.id === 'edit-user-modal') closeEditUserModal()">
-        <div class="modal-box glass-style" onclick="event.stopPropagation()">
-            <h3>Editar Usuário</h3>
-            <div class="admin-section">
-                <label style="display: block; margin-bottom: 5px; font-weight: 600;">E-mail:</label>
-                <input type="email" id="edit-user-email" class="glass-input" placeholder="exemplo@email.com">
-                <div class="modal-actions" style="margin-top: 15px;">
-                    <button class="glass-btn" onclick="saveUserEmail()">💾 Salvar E-mail</button>
-                    <button class="glass-btn" onclick="sendPasswordReset()">📧 Enviar Reset de Senha</button>
-                    <button class="glass-btn btn-cancel" onclick="closeEditUserModal()">❌ Cancelar</button>
+    <!-- Modal para editar usuário - Posicionado no topo e sempre visível -->
+    <div id="edit-user-modal" class="edit-user-modal-overlay hidden" onclick="if(event.target.id === 'edit-user-modal') closeEditUserModal()">
+        <div class="edit-user-modal-box" onclick="event.stopPropagation()">
+            <div class="edit-user-modal-header">
+                <h3>✏️ Editar Usuário</h3>
+                <button class="close-modal-btn" onclick="closeEditUserModal()" title="Fechar">✕</button>
+            </div>
+            <div class="edit-user-modal-content">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">E-mail:</label>
+                <input type="email" id="edit-user-email" class="glass-input" placeholder="exemplo@email.com" style="width: 100%;">
+                <div class="edit-user-modal-actions">
+                    <button class="glass-btn" onclick="saveUserEmail()" style="flex: 1;">💾 Salvar E-mail</button>
+                    <button class="glass-btn" onclick="sendPasswordReset()" style="flex: 1;">📧 Enviar Reset de Senha</button>
+                    <button class="glass-btn btn-danger" onclick="deleteUser()" style="flex: 1;">🗑️ Excluir Usuário</button>
+                    <button class="glass-btn btn-cancel" onclick="closeEditUserModal()" style="flex: 1;">❌ Cancelar</button>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Container de Notificações Customizadas -->
+    <div id="notification-container" class="notification-container"></div>
 
     <script type="module" src="js/main.js"></script>
 </body>

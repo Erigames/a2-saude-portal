@@ -30,9 +30,23 @@ export function initAuthListener() {
 
 // Funções expostas para o HTML (window)
 window.toggleAuthMode = function() {
-    isRegisterMode = document.getElementById('auth-toggle').checked;
-    document.getElementById('btn-text').innerText = isRegisterMode ? "Cadastrar" : "Acessar";
-    document.getElementById('auth-msg').innerText = "";
+    const toggle = document.getElementById('auth-toggle');
+    if(!toggle) return;
+    
+    // Atualiza o estado baseado no checkbox
+    isRegisterMode = toggle.checked;
+    
+    // Atualiza o texto do botão
+    const btnText = document.getElementById('btn-text');
+    if(btnText) {
+        btnText.innerText = isRegisterMode ? "Cadastrar" : "Acessar";
+    }
+    
+    // Limpa mensagens de erro
+    const msg = document.getElementById('auth-msg');
+    if(msg) {
+        msg.innerText = "";
+    }
     
     // Adiciona animação de mudança de posição das caixas
     const authForm = document.querySelector('.auth-form');
@@ -41,23 +55,34 @@ window.toggleAuthMode = function() {
     const emailInput = document.getElementById('auth-email');
     const passInput = document.getElementById('auth-pass');
     
+    if(!authForm || !emailWrapper || !passWrapper || !emailInput || !passInput) {
+        console.error("Elementos do formulário não encontrados!");
+        return;
+    }
+    
+    const buttonWrapper = document.getElementById('button-wrapper');
+    
     if(isRegisterMode) {
-        // Modo cadastro: inverte a ordem (senha primeiro, depois email)
+        // Modo cadastro: inverte a ordem (senha primeiro, depois email, depois botão)
         authForm.classList.add('register-mode');
         // Usa CSS order para inverter a ordem visualmente
         emailWrapper.style.order = '2';
         passWrapper.style.order = '1';
+        if(buttonWrapper) buttonWrapper.style.order = '3';
         emailInput.placeholder = "E-mail corporativo";
         passInput.placeholder = "Crie uma senha (mín. 6 caracteres)";
     } else {
-        // Modo login: ordem normal (email primeiro, depois senha)
+        // Modo login: ordem normal (email primeiro, depois senha, depois botão)
         authForm.classList.remove('register-mode');
         // Ordem normal
         emailWrapper.style.order = '1';
         passWrapper.style.order = '2';
+        if(buttonWrapper) buttonWrapper.style.order = '3';
         emailInput.placeholder = "E-mail corporativo";
         passInput.placeholder = "Senha de acesso";
     }
+    
+    console.log("Modo alterado para:", isRegisterMode ? "CADASTRO" : "LOGIN");
 }
 
 window.handleAuthSubmit = function() {

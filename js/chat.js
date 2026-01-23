@@ -1,5 +1,8 @@
 // js/chat.js - Versão Segura para Vercel
 // IA genérica - não usa mais resumos pré-montados
+import { db } from './config.js';
+import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
 let currentAiContext = "";
 
 // Função mantida para compatibilidade, mas não será mais usada com resumos
@@ -8,11 +11,11 @@ export function setAiContext(text) {
 }
 
 // Inicia a sequência do chat - IA genérica sem resumos pré-montados
-export function initChatSequence() {
+export async function initChatSequence() {
     addMessage("bot", "Olá! Sou a A2 Intelligence.");
-    setTimeout(() => { 
-        addMessage("bot", "Qual manual deseja acessar?"); 
-        showManualOptions(); 
+    setTimeout(async () => { 
+        addMessage("bot", "Qual arquivo deseja acessar?"); 
+        await showManualOptions(); 
     }, 1000);
 }
 
@@ -25,16 +28,38 @@ function addMessage(sender, text) {
     chatBody.scrollTop = chatBody.scrollHeight;
 }
 
-// Mostra as opções de manuais disponíveis (apenas 2)
-function showManualOptions() {
+// Mostra as opções de arquivos disponíveis - carrega dinamicamente do Firebase
+async function showManualOptions() {
     const chatBody = document.getElementById('chat-messages');
     const div = document.createElement('div');
     div.classList.add('cards-container');
-    // Apenas dois manuais: Manual de Entrevistas e Portal de Entrevistas Qualificadas
+    
+    // Sempre inclui o Portal de Entrevistas Qualificadas
     const options = [
-        {id: 'manual-entrevistas', label: 'Manual de Entrevistas'},
         {id: 'portal-entrevistas-qualificadas', label: 'Portal de Entrevistas Qualificadas'}
     ];
+    
+    // Carrega arquivos do Firebase
+    try {
+        const snap = await getDocs(collection(db, "manuais"));
+        snap.forEach(doc => {
+            const data = doc.data();
+            const docId = doc.id;
+            
+            // Adiciona apenas arquivos válidos (com nome e não é o portal)
+            if(data && data.name && typeof data.name === 'string' && data.name.trim() !== '' && docId !== 'portal-entrevistas-qualificadas') {
+                options.push({
+                    id: docId,
+                    label: data.name
+                });
+            }
+        });
+        console.log("Arquivos carregados para exibição:", options.length);
+    } catch(e) {
+        console.error("Erro ao carregar arquivos:", e);
+    }
+    
+    // Cria os botões para cada opção
     options.forEach(opt => {
         const btn = document.createElement('div');
         btn.classList.add('option-card');
@@ -42,6 +67,7 @@ function showManualOptions() {
         btn.onclick = () => window.selectManual(opt);
         div.appendChild(btn);
     });
+    
     chatBody.appendChild(div);
     chatBody.scrollTop = chatBody.scrollHeight;
 }

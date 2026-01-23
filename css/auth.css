@@ -21,6 +21,11 @@
 .input-wrapper {
     animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
+/* Wrapper do botão também muda de posição */
+.button-wrapper {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
 @keyframes slideIn {
     0% { 
         opacity: 0; 

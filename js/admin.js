@@ -36,22 +36,36 @@ window.switchAdminTab = function(tab) {
 
 // ========== GERENCIAMENTO DE MANUAIS ==========
 
-// Carrega lista de manuais no select
+// Carrega lista de arquivos no select - filtra arquivos inválidos
 async function loadManualsList() {
     const select = document.getElementById('admin-select');
-    select.innerHTML = '<option value="">Selecione um manual...</option>';
+    if(!select) {
+        console.error("Select não encontrado!");
+        return;
+    }
+    
+    select.innerHTML = '<option value="">Selecione um arquivo...</option>';
     
     try {
         const snap = await getDocs(collection(db, "manuais"));
-        snap.forEach(doc => {
-            const data = doc.data();
-            const option = document.createElement('option');
-            option.value = doc.id;
-            option.textContent = data.name || doc.id;
-            select.appendChild(option);
+        snap.forEach(docSnapshot => {
+            const data = docSnapshot.data();
+            const docId = docSnapshot.id;
+            
+            // Filtra arquivos inválidos: apenas aceita se tiver campo 'name' válido
+            // e não for o portal de entrevistas qualificadas (que é hardcoded)
+            if(data && data.name && typeof data.name === 'string' && data.name.trim() !== '' && docId !== 'portal-entrevistas-qualificadas') {
+                const option = document.createElement('option');
+                option.value = docId;
+                option.textContent = data.name;
+                select.appendChild(option);
+            } else {
+                console.log("Arquivo inválido ignorado:", docId, data);
+            }
         });
+        console.log("Lista de arquivos carregada com sucesso");
     } catch(e) {
-        console.error("Erro ao carregar manuais:", e);
+        console.error("Erro ao carregar arquivos:", e);
     }
 }
 
@@ -88,14 +102,27 @@ window.loadManualContent = async function() {
         const snap = await getDoc(doc(db, "manuais", currentManualId));
         if(snap.exists()) {
             const d = snap.data();
-            currentFiles = Array.isArray(d.files) ? d.files : [];
-            console.log("Manual carregado:", currentManualId, "com", currentFiles.length, "arquivo(s)");
+            // Filtra apenas arquivos válidos (com propriedade 'name')
+            if(Array.isArray(d.files)) {
+                currentFiles = d.files.filter(f => f && f.name && typeof f.name === 'string' && f.name.trim() !== '');
+            } else {
+                currentFiles = [];
+            }
+            console.log("Arquivo carregado:", currentManualId, "com", currentFiles.length, "arquivo(s) válido(s)");
+            
+            // Remove arquivos inválidos do banco se houver
+            if(Array.isArray(d.files) && d.files.length !== currentFiles.length) {
+                console.log("Arquivos inválidos detectados, limpando...");
+                await setDoc(doc(db, "manuais", currentManualId), {
+                    files: currentFiles
+                }, { merge: true });
+            }
         } else {
-            console.log("Manual não encontrado no banco:", currentManualId);
+            console.log("Arquivo não encontrado no banco:", currentManualId);
             currentFiles = [];
         }
     } catch(e) {
-        console.error("Erro ao carregar manual:", e);
+        console.error("Erro ao carregar arquivo:", e);
         currentFiles = [];
     }
     
@@ -115,11 +142,27 @@ window.hideNewManualForm = function() {
     newManualFile = null;
 }
 
-// Lida com seleção de arquivo para novo manual
+// Lida com seleção de arquivo para novo arquivo
 window.handleNewManualFileSelect = function(input) {
+    if(!input) {
+        console.error("Input de arquivo não encontrado!");
+        return;
+    }
+    
     if(input.files && input.files.length > 0) {
         newManualFile = input.files[0];
-        document.getElementById('new-manual-file-name').textContent = `Arquivo selecionado: ${newManualFile.name}`;
+        const fileNameDisplay = document.getElementById('new-manual-file-name');
+        if(fileNameDisplay && newManualFile.name) {
+            fileNameDisplay.textContent = `Arquivo selecionado: ${newManualFile.name}`;
+            fileNameDisplay.style.color = '#2e7d32';
+        }
+        console.log("Arquivo selecionado:", newManualFile.name);
+    } else {
+        newManualFile = null;
+        const fileNameDisplay = document.getElementById('new-manual-file-name');
+        if(fileNameDisplay) {
+            fileNameDisplay.textContent = '';
+        }
     }
 }
 
@@ -127,20 +170,20 @@ window.handleNewManualFileSelect = function(input) {
 window.createNewManual = async function() {
     const nameInput = document.getElementById('new-manual-name');
     if(!nameInput) {
-        alert("Campo de nome não encontrado!");
+        showError("Campo de nome não encontrado!");
         return;
     }
     
     const name = nameInput.value.trim();
     
     if(!name) {
-        alert("Preencha o nome do manual!");
+        showWarning("Preencha o nome do arquivo!");
         nameInput.focus();
         return;
     }
     
     if(!newManualFile) {
-        alert("Selecione um arquivo para o manual!");
+        showWarning("Selecione um arquivo!");
         return;
     }
     
@@ -155,7 +198,7 @@ window.createNewManual = async function() {
         .trim();
     
     if(!id) {
-        alert("Nome inválido! Use apenas letras, números e espaços.");
+        showWarning("Nome inválido! Use apenas letras, números e espaços.");
         return;
     }
     
@@ -170,14 +213,25 @@ window.createNewManual = async function() {
             counter++;
         }
         
-        // Cria o manual com o arquivo selecionado
+        // Verifica novamente se o arquivo existe antes de usar
+        if(!newManualFile) {
+            showError("Arquivo não selecionado. Por favor, selecione um arquivo novamente.");
+            return;
+        }
+        
+        // Obtém o nome do arquivo de forma segura
+        const fileName = newManualFile.name || 'arquivo-sem-nome';
+        
+        console.log("Criando arquivo com nome:", name, "ID:", finalId, "Arquivo:", fileName);
+        
+        // Cria o arquivo com o arquivo selecionado
         await setDoc(doc(db, "manuais", finalId), {
             name: name,
-            files: [{name: newManualFile.name}], // Adiciona o arquivo selecionado
+            files: [{name: fileName}], // Adiciona o arquivo selecionado
             createdAt: new Date()
         });
         
-        alert(`Manual "${name}" criado com sucesso!`);
+        showSuccess(`Arquivo "${name}" criado com sucesso!`);
         
         // Limpa o formulário
         hideNewManualForm();
@@ -192,17 +246,17 @@ window.createNewManual = async function() {
             await loadManualContent();
         }
         
-        console.log("Manual criado:", finalId, "com arquivo:", newManualFile.name);
+        console.log("Arquivo criado:", finalId, "com arquivo:", fileName);
     } catch(e) {
         console.error("Erro ao criar manual:", e);
-        alert("Erro ao criar manual: " + (e.message || "Erro desconhecido"));
+        showError("Erro ao criar arquivo: " + (e.message || "Erro desconhecido"));
     }
 }
 
 // Remove arquivo da lista
 window.handleFileSelect = function(input) {
     if(!input || !input.files || input.files.length === 0) {
-        alert("Nenhum arquivo selecionado!");
+        showWarning("Nenhum arquivo selecionado!");
         return;
     }
     
@@ -266,15 +320,16 @@ function renderFiles() {
     });
 }
 
-// Salva manual
+// Salva arquivo
 window.saveManual = async function() {
     if(!currentManualId) {
-        alert("Selecione um manual primeiro!");
+        showWarning("Selecione um arquivo primeiro!");
         return;
     }
     
     if(currentFiles.length === 0) {
-        if(!confirm("Nenhum arquivo adicionado. Deseja salvar mesmo assim?")) {
+        const confirmed = await showConfirm("Nenhum arquivo adicionado. Deseja salvar mesmo assim?");
+        if(!confirmed) {
             return;
         }
     }
@@ -290,38 +345,44 @@ window.saveManual = async function() {
             updatedAt: new Date()
         }, { merge: true });
         
-        alert("Manual salvo com sucesso! " + currentFiles.length + " arquivo(s) adicionado(s).");
+        showSuccess("Arquivo salvo com sucesso! " + currentFiles.length + " arquivo(s) adicionado(s).");
     } catch(e) {
         console.error("Erro ao salvar:", e);
-        alert("Erro ao salvar manual: " + (e.message || "Erro desconhecido"));
+        showError("Erro ao salvar arquivo: " + (e.message || "Erro desconhecido"));
     }
 }
 
-// Exclui manual
+// Exclui arquivo
 window.deleteManual = async function() {
     if(!currentManualId) {
-        alert("Selecione um manual primeiro!");
+        showWarning("Selecione um arquivo primeiro!");
         return;
     }
     
-    // Busca o nome do manual para exibir na confirmação
-    let manualName = currentManualId;
+    // Busca o nome do arquivo para exibir na confirmação
+    let fileName = currentManualId;
     try {
-        const manualDoc = await getDoc(doc(db, "manuais", currentManualId));
-        if(manualDoc.exists()) {
-            manualName = manualDoc.data().name || currentManualId;
+        const fileDoc = await getDoc(doc(db, "manuais", currentManualId));
+        if(fileDoc.exists()) {
+            fileName = fileDoc.data().name || currentManualId;
         }
     } catch(e) {
-        console.error("Erro ao buscar nome do manual:", e);
+        console.error("Erro ao buscar nome do arquivo:", e);
     }
     
-    if(!confirm(`Tem certeza que deseja excluir o manual "${manualName}"?\n\nEsta ação não pode ser desfeita!`)) {
+    const confirmed = await showConfirm(
+        `Tem certeza que deseja excluir o arquivo "${fileName}"?<br><br><strong>Esta ação não pode ser desfeita!</strong>`,
+        "Excluir",
+        "Cancelar"
+    );
+    
+    if(!confirmed) {
         return;
     }
     
     try {
         await deleteDoc(doc(db, "manuais", currentManualId));
-        alert("Manual excluído com sucesso!");
+        showSuccess("Arquivo excluído com sucesso!");
         
         // Limpa as variáveis e interface
         currentManualId = null;
@@ -333,13 +394,13 @@ window.deleteManual = async function() {
         const contentSection = document.getElementById('manual-content-section');
         if(contentSection) contentSection.classList.add('hidden');
         
-        // Recarrega a lista de manuais
+        // Recarrega a lista de arquivos
         loadManualsList();
         
-        console.log("Manual excluído:", manualName);
+        console.log("Arquivo excluído:", fileName);
     } catch(e) {
         console.error("Erro ao excluir:", e);
-        alert("Erro ao excluir manual: " + (e.message || "Erro desconhecido"));
+        showError("Erro ao excluir arquivo: " + (e.message || "Erro desconhecido"));
     }
 }
 
@@ -368,6 +429,8 @@ window.filterUsers = async function(status, buttonElement) {
         
         snap.forEach(d => {
             const u = d.data();
+            const isAdminUser = u.role === 'admin';
+            
             const li = document.createElement('li');
             li.className = 'user-item';
             
@@ -380,7 +443,7 @@ window.filterUsers = async function(status, buttonElement) {
             
             const roleSpan = document.createElement('span');
             roleSpan.className = 'user-role';
-            roleSpan.textContent = u.role || 'user';
+            roleSpan.textContent = isAdminUser ? 'Administrador' : (u.role || 'user');
             
             userInfo.appendChild(emailSpan);
             userInfo.appendChild(roleSpan);
@@ -388,19 +451,22 @@ window.filterUsers = async function(status, buttonElement) {
             const userActions = document.createElement('div');
             userActions.className = 'user-actions';
             
-            if(status === 'pending') {
-                const approveBtn = document.createElement('button');
-                approveBtn.className = 'glass-btn btn-approve';
-                approveBtn.textContent = 'Aprovar';
-                approveBtn.onclick = () => approveUser(d.id);
-                userActions.appendChild(approveBtn);
+            // Admin NÃO tem opções de edição, aprovação ou exclusão — só aparece na lista
+            if(!isAdminUser) {
+                if(status === 'pending') {
+                    const approveBtn = document.createElement('button');
+                    approveBtn.className = 'glass-btn btn-approve';
+                    approveBtn.textContent = 'Aprovar';
+                    approveBtn.onclick = () => approveUser(d.id);
+                    userActions.appendChild(approveBtn);
+                }
+                
+                const editBtn = document.createElement('button');
+                editBtn.className = 'glass-btn btn-edit';
+                editBtn.textContent = 'Editar';
+                editBtn.onclick = () => editUser(d.id, u.email);
+                userActions.appendChild(editBtn);
             }
-            
-            const editBtn = document.createElement('button');
-            editBtn.className = 'glass-btn btn-edit';
-            editBtn.textContent = 'Editar';
-            editBtn.onclick = () => editUser(d.id, u.email);
-            userActions.appendChild(editBtn);
             
             li.appendChild(userInfo);
             li.appendChild(userActions);
@@ -416,7 +482,7 @@ window.filterUsers = async function(status, buttonElement) {
 window.approveUser = async function(uid) {
     try {
         await updateDoc(doc(db, "users", uid), { status: 'approved' });
-        alert("Usuário aprovado!");
+        showSuccess("Usuário aprovado com sucesso!");
         // Recarrega a lista de pendentes mantendo o botão ativo
         const pendingBtn = document.querySelector('.filter-tab-btn');
         if(pendingBtn && pendingBtn.textContent.includes('Pendentes')) {
@@ -424,7 +490,7 @@ window.approveUser = async function(uid) {
         }
     } catch(e) {
         console.error("Erro ao aprovar:", e);
-        alert("Erro ao aprovar usuário!");
+        showError("Erro ao aprovar usuário!");
     }
 }
 
@@ -438,28 +504,33 @@ window.editUser = function(uid, email) {
     
     if(!modal) {
         console.error("Modal edit-user-modal não encontrado!");
-        alert("Erro: Modal não encontrado!");
+        showError("Erro: Modal não encontrado! Verifique o console para mais detalhes.");
         return;
     }
     
     if(!emailInput) {
         console.error("Campo edit-user-email não encontrado!");
-        alert("Erro: Campo de e-mail não encontrado!");
+        showError("Erro: Campo de e-mail não encontrado!");
         return;
     }
     
     // Preenche o campo de email
     emailInput.value = email || '';
     
-    // Remove a classe hidden para exibir o modal
+    // Remove a classe hidden para exibir o modal - FORÇA a exibição
     modal.classList.remove('hidden');
+    modal.style.display = 'flex'; // Força display flex
+    modal.style.visibility = 'visible'; // Força visibilidade
+    modal.style.opacity = '1'; // Força opacidade
     
-    // Foca no campo de email
+    // Foca no campo de email após um pequeno delay
     setTimeout(() => {
         emailInput.focus();
-    }, 100);
+        emailInput.select(); // Seleciona o texto para facilitar edição
+    }, 150);
     
     console.log("Modal de edição aberto com sucesso para:", email);
+    console.log("Modal visível:", !modal.classList.contains('hidden'));
 }
 
 // Fecha modal de edição
@@ -469,6 +540,8 @@ window.closeEditUserModal = function() {
     
     if(modal) {
         modal.classList.add('hidden');
+        modal.style.display = 'none'; // Força esconder
+        modal.style.visibility = 'hidden';
     }
     
     if(emailInput) {
@@ -479,72 +552,87 @@ window.closeEditUserModal = function() {
     console.log("Modal de edição fechado");
 }
 
-// Salva novo email do usuário
+// Salva novo email do usuário (Authentication + Firestore via API)
 window.saveUserEmail = async function() {
     if(!currentUserId) {
-        alert("Nenhum usuário selecionado!");
+        showWarning("Nenhum usuário selecionado!");
         return;
     }
     
     const emailInput = document.getElementById('edit-user-email');
     if(!emailInput) {
-        alert("Campo de e-mail não encontrado!");
+        showError("Campo de e-mail não encontrado!");
         return;
     }
     
     const newEmail = emailInput.value.trim();
     if(!newEmail || !newEmail.includes('@')) {
-        alert("E-mail inválido!");
+        showWarning("E-mail inválido!");
         return;
     }
     
     try {
-        // Atualiza o email no Firestore
-        await updateDoc(doc(db, "users", currentUserId), { email: newEmail });
-        alert("E-mail atualizado com sucesso!");
+        const res = await fetch("/api/admin-auth", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "updateEmail", uid: currentUserId, newEmail })
+        });
+        const data = await res.json();
+        
+        if(!res.ok) {
+            throw new Error(data.error || "Erro ao atualizar e-mail");
+        }
+        
+        showSuccess("E-mail atualizado no Authentication e no Firestore!");
         closeEditUserModal();
         
-        // Recarrega a lista atual (pendentes ou cadastrados)
         const activeBtn = document.querySelector('.filter-tab-btn.active');
         if(activeBtn) {
             const status = activeBtn.textContent.includes('Pendentes') ? 'pending' : 'approved';
             filterUsers(status, activeBtn);
         } else {
-            // Fallback: recarrega cadastrados
             const approvedBtn = document.querySelectorAll('.filter-tab-btn')[1];
-            if(approvedBtn) {
-                filterUsers('approved', approvedBtn);
-            }
+            if(approvedBtn) filterUsers('approved', approvedBtn);
         }
     } catch(e) {
         console.error("Erro ao atualizar email:", e);
-        alert("Erro ao atualizar e-mail: " + (e.message || "Erro desconhecido"));
+        showError("Erro ao atualizar e-mail: " + (e.message || "Erro desconhecido"));
     }
 }
 
 // Envia email de reset de senha
 window.sendPasswordReset = async function() {
     if(!currentUserId) {
-        alert("Nenhum usuário selecionado!");
+        showWarning("Nenhum usuário selecionado!");
         return;
     }
     
     const emailInput = document.getElementById('edit-user-email');
     if(!emailInput) {
-        alert("Campo de e-mail não encontrado!");
+        showError("Campo de e-mail não encontrado!");
         return;
     }
     
     const email = emailInput.value.trim();
     if(!email || !email.includes('@')) {
-        alert("E-mail inválido!");
+        showWarning("E-mail inválido!");
+        return;
+    }
+    
+    const confirmed = await showConfirm(
+        `Deseja enviar um e-mail de redefinição de senha para:<br><strong>${email}</strong>?`,
+        "Enviar",
+        "Cancelar"
+    );
+    
+    if(!confirmed) {
         return;
     }
     
     try {
         // Envia o email de reset de senha via Firebase Auth
         await sendPasswordResetEmail(auth, email);
-        alert("E-mail de redefinição de senha enviado com sucesso para: " + email);
+        showSuccess("E-mail de redefinição de senha enviado com sucesso para: " + email);
     } catch(e) {
         console.error("Erro ao enviar email:", e);
         let errorMsg = "Erro ao enviar e-mail.";
@@ -555,7 +643,63 @@ window.sendPasswordReset = async function() {
         } else if(e.message) {
             errorMsg = "Erro: " + e.message;
         }
-        alert(errorMsg);
+        showError(errorMsg);
+    }
+}
+
+// Exclui usuário
+window.deleteUser = async function() {
+    if(!currentUserId) {
+        showWarning("Nenhum usuário selecionado!");
+        return;
+    }
+    
+    const emailInput = document.getElementById('edit-user-email');
+    const email = emailInput ? emailInput.value.trim() : 'este usuário';
+    
+    const confirmed1 = await showConfirm(
+        `⚠️ <strong>ATENÇÃO:</strong> Deseja realmente EXCLUIR o usuário:<br><strong>${email}</strong>?<br><br>Esta ação NÃO pode ser desfeita!`,
+        "Continuar",
+        "Cancelar"
+    );
+    
+    if(!confirmed1) {
+        return;
+    }
+    
+    const confirmed2 = await showConfirm(
+        `Confirma a <strong>EXCLUSÃO PERMANENTE</strong> do usuário <strong>${email}</strong>?`,
+        "Excluir",
+        "Cancelar"
+    );
+    
+    if(!confirmed2) {
+        return;
+    }
+    
+    try {
+        const res = await fetch("/api/admin-auth", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "deleteUser", uid: currentUserId })
+        });
+        const data = await res.json();
+        
+        if(!res.ok) {
+            throw new Error(data.error || "Erro ao excluir usuário");
+        }
+        
+        showSuccess("Usuário excluído do Authentication e do Firestore!");
+        closeEditUserModal();
+        
+        const activeBtn = document.querySelector('.filter-tab-btn.active');
+        if(activeBtn) {
+            const status = activeBtn.textContent.includes('Pendentes') ? 'pending' : 'approved';
+            filterUsers(status, activeBtn);
+        }
+    } catch(e) {
+        console.error("Erro ao excluir usuário:", e);
+        showError("Erro ao excluir usuário: " + (e.message || "Erro desconhecido"));
     }
 }
 

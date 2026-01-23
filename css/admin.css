@@ -45,16 +45,96 @@
     backdrop-filter: blur(5px);
 }
 
-/* Modal de edição de usuário deve ficar acima do modal principal */
-#edit-user-modal {
-    z-index: 400 !important;
+/* Modal de edição de usuário - Posicionado no topo, sempre visível */
+.edit-user-modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(8px);
+    z-index: 10000 !important; /* Z-index muito alto para ficar acima de tudo */
+    display: flex !important;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 80px;
+    overflow-y: auto;
 }
 
-/* Garante que o modal de edição seja visível */
-#edit-user-modal .modal-box {
+.edit-user-modal-overlay.hidden {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+.edit-user-modal-box {
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    border: 2px solid rgba(33, 150, 243, 0.3);
+    border-radius: 20px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     position: relative;
-    z-index: 401;
-    min-width: 400px;
+    z-index: 10001;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.edit-user-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 2px solid rgba(33, 150, 243, 0.2);
+    background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(76, 175, 80, 0.1));
+}
+
+.edit-user-modal-header h3 {
+    margin: 0;
+    color: #1976d2;
+    font-size: 1.3rem;
+}
+
+.close-modal-btn {
+    background: rgba(244, 67, 54, 0.1);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    color: #c62828;
+    transition: all 0.2s;
+}
+
+.close-modal-btn:hover {
+    background: rgba(244, 67, 54, 0.2);
+    transform: scale(1.1);
+}
+
+.edit-user-modal-content {
+    padding: 25px;
+}
+
+.edit-user-modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
 }
 
 /* Estilos para seções admin */

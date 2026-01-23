@@ -4,6 +4,7 @@ import { goToChat, resetToHome, views } from './navigation.js';
 import { initChatSequence, sendMessage } from './chat.js'; 
 import { db } from './config.js';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import './notifications.js'; // Sistema de notificações customizado
 import './admin.js'; 
 
 // Inicia escuta de login
@@ -20,7 +21,7 @@ window.transitionToChat = () => {
 window.softReset = () => resetToHome();
 window.toggleTheme = () => document.body.classList.toggle('theme-dark');
 
-// Lógica de Seleção de Manual
+// Lógica de Seleção de Arquivo
 window.selectManual = async function(option) {
     const { container, manualPanel } = views;
     
@@ -29,14 +30,14 @@ window.selectManual = async function(option) {
     manualPanel.classList.add('show');
     document.getElementById('manual-title').innerText = option.label;
 
-    // Verifica se é o Portal de Entrevistas Qualificadas
+    // Portal de Entrevistas Qualificadas (único arquivo disponível)
     if(option.id === 'portal-entrevistas-qualificadas') {
         renderPortalQualificadas();
         document.getElementById('input-area').classList.remove('hidden');
         return;
     }
 
-    // Para outros manuais, carrega normalmente do banco
+    // Se houver outros arquivos no futuro, carrega do banco
     let data = { files: [] };
     try {
         const snap = await getDoc(doc(db, "manuais", option.id));
