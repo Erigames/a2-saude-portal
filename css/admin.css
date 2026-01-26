@@ -493,11 +493,12 @@
     flex: 1; 
     background: #000; 
     border-radius: 10px; 
-    overflow: hidden; 
+    overflow: auto; 
     display: flex; 
-    align-items: center; 
+    align-items: flex-start; 
     justify-content: center; 
     color: white; 
+    padding: 0;
 }
 
 iframe { 
@@ -521,23 +522,55 @@ video {
 }
 
 .file-upload-area { 
-    border: 2px dashed rgba(33, 150, 243, 0.3); 
+    border: 2px dashed rgba(0, 0, 0, 0.3); 
     border-radius: 10px; 
     padding: 20px; 
     text-align: center; 
-    background: rgba(33, 150, 243, 0.05);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(174, 198, 207, 0.6) 50%, rgba(174, 198, 207, 0.7) 100%);
     transition: all 0.3s;
 }
 
+.validator-container .file-upload-area {
+    border: 2px dashed rgba(0, 0, 0, 0.4);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(174, 198, 207, 0.7) 50%, rgba(174, 198, 207, 0.8) 100%);
+}
+
 .file-upload-area:hover {
-    border-color: rgba(33, 150, 243, 0.5);
-    background: rgba(33, 150, 243, 0.08);
+    border-color: rgba(0, 0, 0, 0.5);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(174, 198, 207, 0.8) 50%, rgba(174, 198, 207, 0.9) 100%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .tip-text { 
     font-size: 0.8rem; 
-    color: #666; 
+    color: #000000;
+    opacity: 0.7;
     margin-bottom: 10px; 
+}
+
+/* Garantir que elementos dentro do validator-container tenham cores adequadas */
+.validator-container .glass-btn {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    color: #000000;
+}
+
+.validator-container .glass-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: #AEC6CF;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.validator-container .btn-primary {
+    background: linear-gradient(135deg, rgba(174, 198, 207, 0.8) 0%, rgba(174, 198, 207, 0.8) 100%);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    color: #000000;
+    font-weight: 600;
+}
+
+.validator-container .btn-primary:hover {
+    background: linear-gradient(135deg, rgba(174, 198, 207, 1) 0%, rgba(174, 198, 207, 1) 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .upload-btn { 
@@ -603,3 +636,279 @@ video {
 .hidden {
     display: none !important;
 }
+
+/* Verificador de Beneficiários */
+.validator-container {
+    padding: 20px;
+    max-width: 100%;
+    overflow-y: auto;
+    height: 100%;
+    box-sizing: border-box;
+    background: #000000 !important;
+}
+
+.validator-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 25px;
+    background: linear-gradient(135deg, #AEC6CF 0%, #AEC6CF 50%, #ffffff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+}
+
+.validator-section {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(174, 198, 207, 0.8) 50%, rgba(174, 198, 207, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.validator-section h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #000000;
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #000000;
+    font-size: 0.9rem;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #000000;
+    font-size: 0.95rem;
+    transition: all 0.3s;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #AEC6CF;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 0 0 3px rgba(174, 198, 207, 0.3);
+}
+
+.status-message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.status-message .loading {
+    color: #000000;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.status-message .loading::before {
+    content: "⏳";
+    animation: spin 1s linear infinite;
+}
+
+.status-message .success {
+    color: #1b5e20;
+    background: rgba(27, 94, 32, 0.15);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(27, 94, 32, 0.3);
+    font-weight: 500;
+}
+
+.status-message .error {
+    color: #f44336;
+    background: rgba(244, 67, 54, 0.2);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(244, 67, 54, 0.4);
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.btn-primary {
+    background: rgba(33, 150, 243, 0.3);
+    border: 1px solid rgba(33, 150, 243, 0.5);
+}
+
+.btn-primary:hover {
+    background: rgba(33, 150, 243, 0.4);
+    border-color: rgba(33, 150, 243, 0.7);
+}
+
+/* Resultados */
+.results-container {
+    margin-top: 20px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(174, 198, 207, 0.8) 50%, rgba(174, 198, 207, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.results-header h4 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #000000;
+    margin: 0;
+}
+
+.parecer-navigation {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.nav-btn {
+    padding: 8px 15px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    color: #000000;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 1);
+    border-color: #AEC6CF;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.nav-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#parecer-counter {
+    font-weight: 600;
+    color: #000000;
+    min-width: 60px;
+    text-align: center;
+}
+
+.parecer-results {
+    margin-top: 20px;
+}
+
+.parecer-group {
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    padding: 15px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.parecer-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #000000;
+    margin-bottom: 10px;
+}
+
+.parecer-count {
+    font-size: 0.9rem;
+    color: #000000;
+    opacity: 0.8;
+    margin-bottom: 15px;
+}
+
+.table-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 500px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.results-table thead {
+    position: sticky;
+    top: 0;
+    background: linear-gradient(135deg, rgba(174, 198, 207, 0.9) 0%, rgba(174, 198, 207, 0.8) 50%, rgba(255, 255, 255, 0.9) 100%);
+    z-index: 10;
+}
+
+.results-table th {
+    padding: 12px 10px;
+    text-align: left;
+    font-weight: 600;
+    color: #000000;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+}
+
+.results-table td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    color: #000000;
+    white-space: nowrap;
+}
+
+.results-table tbody tr:hover {
+    background: rgba(174, 198, 207, 0.2);
+}
+
+/* Linha destacada para Declínio Técnico */
+.results-table tbody tr.declinio-tecnico {
+    background: #ffcccc !important;
+}
+
+.results-table tbody tr.declinio-tecnico td {
+    color: #000000 !important;
+    font-weight: 500;
+}
+
+.results-table .highlight-col {
+    background: rgba(255, 235, 59, 0.4);
+    font-weight: 500;
+    white-space: normal;
+    max-width: 300px;
+    word-wrap: break-word;
+    color: #000000;
+}
+
+.results-table thead .highlight-col {
+    background: rgba(255, 235, 59, 0.6);
+    color: #000000;
+}
+

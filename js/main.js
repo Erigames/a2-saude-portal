@@ -5,7 +5,8 @@ import { initChatSequence, sendMessage } from './chat.js';
 import { db } from './config.js';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import './notifications.js'; // Sistema de notificações customizado
-import './admin.js'; 
+import './admin.js';
+import { renderBeneficiariosValidator } from './beneficiarios-validator.js'; 
 
 // Inicia escuta de login
 initAuthListener();
@@ -30,9 +31,16 @@ window.selectManual = async function(option) {
     manualPanel.classList.add('show');
     document.getElementById('manual-title').innerText = option.label;
 
-    // Portal de Entrevistas Qualificadas (único arquivo disponível)
+    // Portal de Entrevistas Qualificadas
     if(option.id === 'portal-entrevistas-qualificadas') {
         renderPortalQualificadas();
+        document.getElementById('input-area').classList.remove('hidden');
+        return;
+    }
+    
+    // Verificador de Beneficiários
+    if(option.id === 'verificador-beneficiarios') {
+        renderBeneficiariosValidator();
         document.getElementById('input-area').classList.remove('hidden');
         return;
     }

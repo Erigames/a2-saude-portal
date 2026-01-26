@@ -34,9 +34,10 @@ async function showManualOptions() {
     const div = document.createElement('div');
     div.classList.add('cards-container');
     
-    // Sempre inclui o Portal de Entrevistas Qualificadas
+    // Sempre inclui o Portal de Entrevistas Qualificadas e o Verificador de Beneficiários
     const options = [
-        {id: 'portal-entrevistas-qualificadas', label: 'Portal de Entrevistas Qualificadas'}
+        {id: 'portal-entrevistas-qualificadas', label: 'Portal de Entrevistas Qualificadas'},
+        {id: 'verificador-beneficiarios', label: 'Verificador de Beneficiários'}
     ];
     
     // Carrega arquivos do Firebase
