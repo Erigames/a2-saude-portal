@@ -24,20 +24,20 @@
 import { google } from 'googleapis';
 import admin from 'firebase-admin';
 
-// Inicializa Firebase Admin se ainda não estiver inicializado
+// Inicializa Firebase Admin (usa FIREBASE_SERVICE_ACCOUNT ou GOOGLE_SERVICE_ACCOUNT como fallback)
 function getFirebaseAdmin() {
     if (admin.apps.length) return admin.app();
-    const cred = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (!cred) throw new Error('FIREBASE_SERVICE_ACCOUNT não configurada');
+    const cred = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_SERVICE_ACCOUNT;
+    if (!cred) throw new Error('FIREBASE_SERVICE_ACCOUNT ou GOOGLE_SERVICE_ACCOUNT não configurada');
     const serviceAccount = typeof cred === 'string' ? JSON.parse(cred) : cred;
     return admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 
-// Inicializa Google Auth (compartilhado entre Sheets e Drive)
+// Inicializa Google Auth (usa GOOGLE_SERVICE_ACCOUNT ou FIREBASE_SERVICE_ACCOUNT como fallback)
 function getGoogleAuth() {
-    const serviceAccountCred = process.env.GOOGLE_SERVICE_ACCOUNT;
+    const serviceAccountCred = process.env.GOOGLE_SERVICE_ACCOUNT || process.env.FIREBASE_SERVICE_ACCOUNT;
     if (!serviceAccountCred) {
-        throw new Error('GOOGLE_SERVICE_ACCOUNT não configurada');
+        throw new Error('GOOGLE_SERVICE_ACCOUNT ou FIREBASE_SERVICE_ACCOUNT não configurada');
     }
     
     const serviceAccount = typeof serviceAccountCred === 'string' 
@@ -72,71 +72,91 @@ function getGoogleDrive() {
 // Verifica diretamente no gerenciamento de acesso da planilha (compartilhamento)
 async function isEmailAuthorized(userEmail, drive, sheetId) {
     try {
-        // Lista todas as permissões do arquivo (planilha)
         const permissionsResponse = await drive.permissions.list({
             fileId: sheetId,
             fields: 'permissions(id,type,emailAddress,role)',
+            supportsAllDrives: true,
         });
         
         const permissions = permissionsResponse.data.permissions || [];
         const normalizedUserEmail = userEmail.toLowerCase().trim();
         
-        // Verifica se o e-mail do usuário está nas permissões
         for (const permission of permissions) {
-            // Verifica permissões de usuário (type: 'user')
             if (permission.type === 'user' && permission.emailAddress) {
                 const permissionEmail = permission.emailAddress.toLowerCase().trim();
                 if (permissionEmail === normalizedUserEmail) {
-                    // E-mail encontrado nas permissões - usuário tem acesso
                     return true;
                 }
             }
-            
-            // Verifica permissões de grupo (type: 'group')
-            // Nota: A API não lista membros de grupos automaticamente
-            // Se você usar grupos, pode precisar de lógica adicional
             if (permission.type === 'group' && permission.emailAddress) {
                 const groupEmail = permission.emailAddress.toLowerCase().trim();
-                // Se o e-mail do usuário corresponde ao e-mail do grupo
-                // (caso de grupos do Google Workspace)
                 if (groupEmail === normalizedUserEmail) {
                     return true;
                 }
             }
         }
         
-        // Também verifica se o arquivo está compartilhado publicamente ou com "qualquer pessoa com o link"
-        // Neste caso, verificamos se há permissão para "anyone" ou "domain"
-        const hasPublicAccess = permissions.some(p => 
-            p.type === 'anyone' || p.type === 'domain'
-        );
-        
-        // Se o arquivo está público, permite acesso (mas isso não deve acontecer se a planilha for privada)
-        // Por segurança, vamos retornar false mesmo se público, a menos que seja explicitamente necessário
-        // return hasPublicAccess; // Descomente se quiser permitir acesso público
-        
         return false;
     } catch (error) {
-        console.error('Erro ao verificar permissões da planilha:', error);
+        const code = error.code ?? error.response?.status;
+        const msg = error.message || error.response?.data?.error?.message || String(error);
+        console.error('Erro ao verificar permissões da planilha:', { code, msg, sheetId });
         
-        // Se o erro for de permissão insuficiente da conta de serviço, retorna erro específico
-        if (error.code === 403 || error.message?.includes('insufficient permissions')) {
-            throw new Error('A conta de serviço não tem permissão para verificar as permissões da planilha. Verifique se a conta de serviço tem acesso à planilha.');
+        if (code === 403 || msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('forbidden')) {
+            throw new Error(
+                'A conta de serviço não tem permissão para verificar as permissões da planilha. ' +
+                'Ative a Drive API no Google Cloud, compartilhe a planilha com o e-mail da conta de serviço e verifique as variáveis de ambiente.'
+            );
+        }
+        if (code === 404) {
+            throw new Error('Planilha não encontrada. Verifique o SHEET_ID.');
         }
         
-        // Em caso de erro, retorna false por segurança
-        return false;
+        throw new Error(`Falha ao verificar permissões: ${msg}`);
     }
 }
 
+function parseBody(req) {
+    let body = req.body;
+    if (typeof body === 'string') {
+        try {
+            return JSON.parse(body);
+        } catch (e) {
+            return null;
+        }
+    }
+    if (Buffer.isBuffer && Buffer.isBuffer(body)) {
+        try {
+            return JSON.parse(body.toString('utf8'));
+        } catch (e) {
+            return null;
+        }
+    }
+    return body && typeof body === 'object' ? body : {};
+}
+
+function getErrorMessage(error) {
+    if (error.response?.data?.error?.message) {
+        return error.response.data.error.message;
+    }
+    if (error.response?.data?.error_description) {
+        return error.response.data.error_description;
+    }
+    if (error.message) return error.message;
+    return String(error);
+}
+
 export default async function handler(req, res) {
-    // Apenas aceita requisições POST
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Método não permitido' });
     }
 
     try {
-        const { idToken, sheetId, sheetTab } = req.body;
+        const body = parseBody(req);
+        if (!body || typeof body !== 'object') {
+            return res.status(400).json({ error: 'Body JSON inválido' });
+        }
+        const { idToken, sheetId, sheetTab } = body;
         
         if (!idToken) {
             return res.status(401).json({ error: 'Token de autenticação não fornecido' });
@@ -144,7 +164,6 @@ export default async function handler(req, res) {
         
         const finalSheetId = sheetId || process.env.SHEET_ID || '1iqSIy7R1vyFizribGrO7QpF8W8u--zDUcAv0nDQ3N6s';
         
-        // Verifica o token do Firebase
         const firebaseAdmin = getFirebaseAdmin();
         const decodedToken = await firebaseAdmin.auth().verifyIdToken(idToken);
         const userEmail = decodedToken.email;
@@ -153,10 +172,7 @@ export default async function handler(req, res) {
             return res.status(401).json({ error: 'E-mail não encontrado no token' });
         }
         
-        // Inicializa Google Drive API para verificar permissões
         const drive = getGoogleDrive();
-        
-        // Verifica se o e-mail está autorizado através das permissões do Google Sheets
         const isAuthorized = await isEmailAuthorized(userEmail, drive, finalSheetId);
         
         if (!isAuthorized) {
@@ -165,16 +181,12 @@ export default async function handler(req, res) {
             });
         }
         
-        // Inicializa Google Sheets API para obter os dados
         const sheets = getGoogleSheets();
-        
-        // Determina qual aba usar
         const targetSheet = sheetTab || process.env.SHEET_DEFAULT_TAB || 'Dados';
         
-        // Obtém os dados da planilha
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: finalSheetId,
-            range: `${targetSheet}!A:Z`, // Ajuste o range conforme necessário
+            range: `${targetSheet}!A:Z`,
         });
         
         const rows = response.data.values;
@@ -183,11 +195,9 @@ export default async function handler(req, res) {
             return res.status(404).json({ error: 'Planilha vazia ou aba não encontrada' });
         }
         
-        // Converte para CSV
         const csvContent = rows.map(row => {
             return row.map(cell => {
                 const cellStr = (cell || '').toString();
-                // Se contém vírgula, ponto e vírgula ou quebra de linha, envolve em aspas
                 if (cellStr.includes(',') || cellStr.includes(';') || cellStr.includes('\n') || cellStr.includes('"')) {
                     const escaped = cellStr.replace(/"/g, '""');
                     return `"${escaped}"`;
@@ -196,30 +206,36 @@ export default async function handler(req, res) {
             }).join(',');
         }).join('\n');
         
-        // Retorna o CSV
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.status(200).send(csvContent);
         
     } catch (error) {
+        const msg = getErrorMessage(error);
         console.error('Erro ao acessar planilha:', error);
+        if (error.stack) console.error(error.stack);
         
         if (error.code === 'auth/id-token-expired') {
             return res.status(401).json({ error: 'Token expirado. Faça login novamente.' });
         }
-        
         if (error.code === 'auth/argument-error') {
             return res.status(401).json({ error: 'Token inválido.' });
         }
-        
         if (error.message && error.message.includes('GOOGLE_SERVICE_ACCOUNT')) {
             return res.status(500).json({ 
-                error: 'Configuração do servidor incompleta. Contate o administrador.' 
+                error: 'GOOGLE_SERVICE_ACCOUNT não configurada ou inválida.',
+                message: msg 
+            });
+        }
+        if (error.message && error.message.includes('FIREBASE_SERVICE_ACCOUNT')) {
+            return res.status(500).json({ 
+                error: 'FIREBASE_SERVICE_ACCOUNT não configurada ou inválida.',
+                message: msg 
             });
         }
         
         return res.status(500).json({ 
             error: 'Erro ao acessar a planilha',
-            message: error.message 
+            message: msg 
         });
     }
 }

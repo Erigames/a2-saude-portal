@@ -127,6 +127,9 @@ window.loadSheetData = async function() {
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+            const err = errorData.error || 'Erro ao acessar a planilha';
+            const msg = errorData.message;
+            const full = msg && msg !== err ? `${err}: ${msg}` : err;
             
             if (response.status === 401) {
                 throw new Error('Sessão expirada. Faça login novamente.');
@@ -135,7 +138,7 @@ window.loadSheetData = async function() {
             } else if (response.status === 404) {
                 throw new Error('Planilha vazia ou aba não encontrada.');
             } else {
-                throw new Error(errorData.error || `Erro ao acessar a planilha. Status: ${response.status}`);
+                throw new Error(full);
             }
         }
         
